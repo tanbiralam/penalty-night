@@ -85,6 +85,8 @@ kbd { font: inherit; font-size: 9px; color: var(--ink); border: 1px solid var(--
 #controls > span { display: flex; align-items: center; gap: 6px; }
 .mouse-icon { display: inline-block; width: 9px; height: 13px; border: 1px solid var(--muted); border-radius: 5px; margin-right: 1px; }
 .footer-right { display: flex; gap: 24px; align-items: center; }
+.author-credit { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); white-space: nowrap; color: var(--ink); }
+.author-credit:hover { color: var(--accent); }
 .footer-right button, .footer-right a { font-size: 9px; }
 .footer-menu { position: relative; }
 .menu-button { white-space: nowrap; }
@@ -118,15 +120,17 @@ dialog .dialog-note { font-size: 10px; }
 .history td.saved, .history td.missed, .history td.post { color: var(--miss); }
 
 @media (min-height: 850px) { .shoot-panel { bottom: 90px; } }
+@media (max-width: 1250px) and (min-width: 901px) { .author-credit { position: static; transform: none; } }
 @media (max-width: 900px) {
 	.header { top: 18px; left: 22px; right: 22px; display: grid; grid-template-columns: 1fr auto; row-gap: 12px; }
 	.scoreboard { position: static; grid-column: 1 / -1; justify-self: center; transform: none; gap: 4px 14px; padding: 4px 8px; }
-	#stage { inset: 120px 0 200px; }
-	.shoot-panel { bottom: 64px; width: 270px; }
+	#stage { inset: 120px 0 230px; }
+	.shoot-panel { bottom: 96px; width: 270px; }
 	#feedback { margin-bottom: 14px; }
 	.footer { left: 16px; right: 16px; bottom: 16px; font-size: 8px; justify-content: center; }
 	#controls { display: none; }
 	.footer-right { flex-wrap: wrap; justify-content: center; gap: 10px 18px; }
+	.author-credit { position: static; transform: none; flex-basis: 100%; text-align: center; }
 }
 @media (max-height: 620px) and (min-width: 901px) {
 	body { min-height: 400px; }

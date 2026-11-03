@@ -1,9 +1,12 @@
 // Every sound is made here with the Web Audio API: no audio files.
-// Modes: 'all' (crowd ambience + effects), 'effects' (no ambience), 'off'.
-const AMBIENT_VOLUME = 0.22
+// Modes: 'all' (music + crowd + effects), 'effects' (crowd + effects, no music), 'off'.
+import { createMusicBuffer } from './music.js?v=1'
+
+const AMBIENT_VOLUME = 0.16
+const MUSIC_VOLUME = 0.85
 
 export function createAudio() {
-	let ctx, master, ambientGain, fx, echo, noise
+	let ctx, master, ambientGain, musicGain, fx, echo, noise
 	let mode = 'all', crowdLevel = 1, echoLevel = 0
 
 	function ensure() {
@@ -29,6 +32,7 @@ export function createAudio() {
 			const data = noise.getChannelData(0)
 			for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
 			startAmbient()
+			setTimeout(startMusic, 30) // building the loop takes a moment; keep the first click snappy
 		}
 		if (ctx.state === 'suspended' || ctx.state === 'interrupted') ctx.resume()
 	}
@@ -36,7 +40,7 @@ export function createAudio() {
 	// a murmuring crowd: looped noise through a voice-band filter, its level drifting slowly
 	function startAmbient() {
 		ambientGain = ctx.createGain()
-		ambientGain.gain.value = mode === 'all' ? AMBIENT_VOLUME * crowdLevel : 0
+		ambientGain.gain.value = ambientLevel()
 		const source = ctx.createBufferSource()
 		source.buffer = noise
 		source.loop = true
@@ -59,6 +63,19 @@ export function createAudio() {
 		lfo.start()
 	}
 
+	function startMusic() {
+		musicGain = ctx.createGain()
+		musicGain.gain.value = 0
+		musicGain.connect(master)
+		const source = ctx.createBufferSource()
+		source.buffer = createMusicBuffer(ctx)
+		source.loop = true
+		source.connect(musicGain)
+		source.start()
+		musicGain.gain.setTargetAtTime(mode === 'all' ? MUSIC_VOLUME : 0, ctx.currentTime, 1.2) // fade in
+	}
+
+	const ambientLevel = () => (mode === 'off' ? 0 : AMBIENT_VOLUME * crowdLevel)
 	const now = () => ctx.currentTime
 	const live = () => ctx && mode !== 'off' && ctx.state === 'running'
 
@@ -127,14 +144,15 @@ export function createAudio() {
 			ensure()
 			if (!ctx) return
 			master.gain.setTargetAtTime(mode === 'off' ? 0 : 1, now(), 0.03)
-			ambientGain.gain.setTargetAtTime(mode === 'all' ? AMBIENT_VOLUME * crowdLevel : 0, now(), 0.05)
+			ambientGain.gain.setTargetAtTime(ambientLevel(), now(), 0.05)
+			musicGain?.gain.setTargetAtTime(mode === 'all' ? MUSIC_VOLUME : 0, now(), 0.3)
 		},
 		setStadium({ echo: level, crowd }) {
 			crowdLevel = crowd
 			echoLevel = level
 			if (!ctx) return
 			echo.gain.setTargetAtTime(echoLevel, now(), 0.05)
-			ambientGain.gain.setTargetAtTime(mode === 'all' ? AMBIENT_VOLUME * crowdLevel : 0, now(), 0.3)
+			ambientGain.gain.setTargetAtTime(ambientLevel(), now(), 0.3)
 		},
 		get mode() { return mode },
 	}

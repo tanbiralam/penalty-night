@@ -2,12 +2,12 @@ import {
 	GOAL, BALL_R, KEEPER_X, SPOT, SWEET, AIM_MARGIN, ZONES, PLAYER_DIVE_TIME,
 	zoneOf, keeperHitArea, keeperDive, playerDive, shotResult, aiKick,
 	newShootout, recordKick, kickNumber, isSuddenDeath, shootoutResult, historyKind, goals, REGULATION,
-} from './rules.js?v=1'
-import { STADIUMS } from './stadiums.js?v=1'
-import { createAudio } from './audio.js?v=1'
+} from './rules.js?v=2'
+import { STADIUMS } from './stadiums.js?v=2'
+import { createAudio } from './audio.js?v=2'
 
 // World (rules.js) is metres with the goal line on x = 0. The engine draws in its own units: K per metre, shifted by X0.
-const K = 1.3, X0 = 3.5
+const K = 1.08, X0 = 4
 const E = (x, y, z = 0) => [(x - X0) * K, y * K, z * K]
 const GOAL_EX = (0 - X0) * K
 
@@ -17,11 +17,13 @@ const RUNUP = 1.15 // CPU run-up before its pause
 const DIVE_WINDOW = 0.28 // how long after the strike a dive still counts
 const RESULT_TIME = 1.9
 
-const PLAYER_KIT = { shirt: [212, 92, 50], stripe: [236, 136, 78], legs: [40, 40, 54], skin: [214, 160, 120], hair: [52, 38, 30] }
-const CPU_KIT = { shirt: [62, 98, 172], stripe: [96, 134, 206], legs: [232, 232, 238], skin: [170, 118, 84], hair: [28, 24, 22] }
-const PLAYER_KEEPER = { shirt: [66, 168, 96], shorts: [30, 40, 36], skin: [214, 160, 120], hair: [52, 38, 30], gloves: [246, 244, 236] }
-const CPU_KEEPER = { shirt: [232, 196, 62], shorts: [40, 40, 50], skin: [170, 118, 84], hair: [28, 24, 22], gloves: [246, 244, 236] }
+// Football kits: a solid jersey with trim on the collar and sleeves, shorts, socks and boots.
+const HOME = { shirt: [208, 74, 46], trim: [250, 244, 230], shorts: [246, 242, 232], socks: [208, 74, 46], boots: [30, 28, 32], skin: [214, 160, 120], hair: [52, 38, 30], number: 9 }
+const AWAY = { shirt: [44, 84, 164], trim: [246, 198, 66], shorts: [30, 40, 78], socks: [242, 242, 246], boots: [24, 24, 28], skin: [170, 118, 84], hair: [28, 24, 22], number: 7 }
+const HOME_KEEPER = { shirt: [96, 190, 84], trim: [26, 58, 32], shorts: [30, 36, 34], socks: [96, 190, 84], boots: [30, 28, 32], skin: [214, 160, 120], hair: [52, 38, 30], gloves: [246, 244, 236] }
+const AWAY_KEEPER = { shirt: [244, 192, 54], trim: [40, 40, 52], shorts: [40, 40, 52], socks: [244, 192, 54], boots: [24, 24, 28], skin: [170, 118, 84], hair: [28, 24, 22], gloves: [246, 244, 236] }
 const BALL = [244, 244, 238], WHITE = [240, 240, 236]
+const BALL_SIZE = BALL_R * K * 1.7 // drawn larger than life so it reads at this resolution
 
 const nodes = Object.fromEntries([...document.querySelectorAll('[id]')].map(node => [node.id, node]))
 const store = {
@@ -32,7 +34,7 @@ let stadiumId = store.get('stadium', STADIUMS, 'street')
 let stadium = STADIUMS[stadiumId]
 const DIFFICULTIES = { easy: 'Easy', medium: 'Medium', hard: 'Hard' }
 let difficulty = store.get('difficulty', DIFFICULTIES, 'medium')
-const SOUND_MODES = { all: 'Sound on', effects: 'Crowd off', off: 'Sound off' }
+const SOUND_MODES = { all: 'Sound on', effects: 'Music off', off: 'Sound off' }
 const sound = createAudio()
 
 const game = {
@@ -41,7 +43,7 @@ const game = {
 	aim: { y: 1.6, z: 1.3 }, power: 0,
 	keeper: { target: null, start: 0, diveTime: PLAYER_DIVE_TIME },
 	shot: null, simT: 0, eventIndex: 0, kick: null, dive: { col: 0, row: 0 }, diveTime: null,
-	ripple: null, held: new Set(),
+	ripple: null, held: new Set(), cheerAt: -10,
 }
 
 // ── scene ────────────────────────────────────────────────────────────────
@@ -49,27 +51,47 @@ const game = {
 const fadesOut = (reach, ix, iy) => reach > 1.04 || (reach > 0.91 && hash(ix, iy) < (reach - 0.91) / 0.13)
 const shade = (c, s) => rgb(c[0] + s, c[1] + s, c[2] + s)
 
+// The diorama: a marked pitch, a paved apron and concourse around it, then a grass verge that frays into the page.
+const PITCH = { back: -0.9, front: 15, half: 8.2 }
+const APRON = 0.8
+const LINE = 0.07
+const BOX_EDGE = 13.4, SIX = { depth: 4.5, half: 5.8 }
+
+function pitchLines(x, y) {
+	const ax = Math.abs(y), side = PITCH.half - 0.3
+	if (x < -LINE || x > PITCH.front - 0.3 + LINE || ax > side + LINE) return false
+	if (Math.abs(x) < LINE || Math.abs(ax - side) < LINE) return true // goal line, touchlines
+	if (Math.abs(x - BOX_EDGE) < LINE || Math.abs(x - (PITCH.front - 0.3)) < LINE) return true // box edge, far line
+	if ((Math.abs(x - SIX.depth) < LINE && ax < SIX.half) || (Math.abs(ax - SIX.half) < LINE && x < SIX.depth)) return true
+	if (x > BOX_EDGE && Math.abs(Math.hypot(x - SPOT.x, y) - 3.4) < LINE) return true // the D
+	return Math.hypot(x - SPOT.x, y) < 0.17 // penalty spot
+}
+
 function groundColor(ex, ey, ix, iy, index) {
-	const x = ex / K + X0, y = ey / K
-	const edge = Math.pow((Math.abs(ex - 0.6) / 14.6) ** 6 + (Math.abs(ey) / 12) ** 6, 1 / 6)
-	if (fadesOut(edge + (noise(ex * 1.3, ey * 1.3) - 0.5) * 0.1, ix, iy)) return 0
+	const x = ex / K + X0, y = ey / K, ax = Math.abs(y)
+	const edge = Math.pow((Math.abs(x - 4.3) / 13.6) ** 6 + (ax / 11.2) ** 6, 1 / 6)
+	if (fadesOut(edge + (noise(ex * 1.3, ey * 1.3) - 0.5) * 0.12, ix, iy)) return 0
 	const grain = (hash(ix, iy) - 0.5) * 8 + (noise(ex * 1.2, ey * 1.2) - 0.5) * 6
-	let light = 0
-	if (stadium.floodlights) light = Math.max(0, 24 - Math.min(Math.hypot(x + 1.5, y - 8.5), Math.hypot(x + 1.5, y + 8.5), Math.hypot(x - 6, y)) * 2.4)
-	if (x > -1.1) {
+	const light = stadium.floodlights ? Math.max(0, 26 - Math.min(Math.hypot(x + 1.6, y - 9.2), Math.hypot(x + 1.6, y + 9.2), Math.hypot(x - 5, y) * 1.4) * 2.2) : 0
+	if (x >= PITCH.back && x <= PITCH.front && ax <= PITCH.half) {
 		kinds[index] = 1
-		const band = Math.floor((x + 40) / 2.2) % 2
+		// mown stripes, a fainter cross-cut, and worn turf in the goalmouth and on the spot
+		const band = Math.floor((x + 40) / 2) % 2, cross = Math.floor((y + 40) / 2.4) % 2
 		let color = stadium.pitch[band]
-		const ax = Math.abs(y), line = 0.07
-		const goalLine = Math.abs(x) < line && ax < 13
-		const sixYard = (Math.abs(x - 5.5) < line && ax < 9.16) || (Math.abs(ax - 9.16) < line && x > 0 && x < 5.5)
-		const spot = Math.hypot(x - SPOT.x, y) < 0.16
-		if (goalLine || sixYard || spot) color = stadium.line
-		return shade(color, grain + light)
+		const wear = Math.max(0, 1 - Math.hypot((x - 0.9) / 1.7, y / 3.3)) + Math.max(0, 1 - Math.hypot(x - SPOT.x, y) / 1.2)
+		if (wear * (0.6 + noise(x * 3, y * 3)) > 0.62) color = stadium.worn
+		if (pitchLines(x, y)) color = stadium.line
+		return shade(color, grain + light + (cross ? 3 : -2))
 	}
-	kinds[index] = 2
-	const seam = stadium.seam && (Math.abs((x + 40) % 1.8) < 0.05 || Math.abs((y + 40) % 1.8) < 0.05)
-	return shade(stadium.surround, grain + light * 0.6 - (seam ? stadium.seam : 0))
+	if (x < PITCH.back || (x <= PITCH.front + APRON && ax <= PITCH.half + APRON)) {
+		kinds[index] = 2
+		const seam = stadium.seam && (Math.abs((x + 40) % 1.6) < 0.05 || Math.abs((y + 40) % 1.6) < 0.05)
+		const kerb = x >= PITCH.back && Math.abs(ax - PITCH.half - 0.06) < 0.07 || Math.abs(x - PITCH.back + 0.06) < 0.07 && ax < PITCH.half
+		return shade(stadium.surround, grain + light * 0.6 - (seam ? stadium.seam : 0) + (kerb ? 14 : 0))
+	}
+	kinds[index] = KIND_GRASS
+	const tone = clamp(Math.floor(noise(x * 0.8, y * 0.8) * 3.7 + hash(ix, iy) * 1.1), 0, 4)
+	return rgb(...GRASS[tone])
 }
 
 const bar = (a, b, r, color) => capsule(a, b, r, r, () => color, 'solid')
@@ -84,40 +106,78 @@ function drawFrame() {
 	for (let y = -py; y < py; y += 0.25) castShadow(...E(0, y, top), r)
 }
 
+// Spectators are captured rather than baked, so they can jump when the home side scores.
+const crowd = []
 function drawStand() {
 	const [dark, bright] = stadium.board
-	// advertising boards behind the goal
 	for (let i = 0; i < 8; i++) {
 		const y0 = -7 + i * 1.75
 		box(...E(-2.9, y0, 0), ...E(-2.75, y0 + 1.75, 0.8), i % 2 ? bright : dark, i)
 	}
-	box(...E(-5.2, -7, 0), ...E(-3.4, 7, 0.45), stadium.stand, 3)
-	box(...E(-6.6, -7, 0), ...E(-5.2, 7, 0.95), stadium.stand, 5)
+	box(...E(-5.2, -7.4, 0), ...E(-3.4, 7.4, 0.45), stadium.stand, 3)
+	box(...E(-6.6, -7.4, 0), ...E(-5.2, 7.4, 0.95), stadium.stand, 5)
+	box(...E(-7.3, -7.4, 0), ...E(-6.6, 7.4, 2.4), stadium.wall, 7)
+	box(...E(-6.62, -5.2, 1.35), ...E(-6.54, 5.2, 2.0), bright, 9)
+	for (let k = -4.6; k <= 4.6; k += 0.9) box(...E(-6.55, k, 1.55), ...E(-6.5, k + 0.45, 1.8), dark, k)
 	let n = 0
 	for (const [x, z] of [[-4.3, 0.45], [-5.9, 0.95]]) {
-		for (let y = -6.4; y <= 6.4; y += 1.15) {
-			const [shirt, stripe] = stadium.crowd[(n * 7 + 3) % stadium.crowd.length]
+		for (let y = -6.6; y <= 6.6; y += 1.05) {
+			const [shirt, trim] = stadium.crowd[(n * 7 + 3) % stadium.crowd.length]
 			const jitter = (hash(n, 4) - 0.5) * 0.5
 			const [ex, ey, ez] = E(x + jitter * 0.4, y + jitter, z)
-			figure(ex, ey, (hash(n, 9) - 0.5) * 0.6, {
-				scale: 0.86, stance: 0.1, armR: hash(n, 2) > 0.7 ? 2.6 : 0.3, armL: 0.2, z: ez,
-			}, { shirt, stripe, legs: [50, 50, 64], skin: hash(n, 5) > 0.5 ? [214, 164, 124] : [150, 104, 74], hair: [40, 32, 28] }, dynamicAdd)
+			capture = []
+			footballer(ex, ey, (hash(n, 9) - 0.5) * 0.6, {
+				scale: 0.84, stance: 0.1, armR: hash(n, 2) > 0.65 ? 2.7 : 0.3, armL: hash(n, 6) > 0.8 ? 2.6 : 0.2, z: ez,
+			}, { shirt, trim, shorts: [52, 58, 82], socks: [44, 44, 52], boots: [40, 36, 36], skin: hash(n, 5) > 0.5 ? [214, 164, 124] : [150, 104, 74], hair: hash(n, 8) > 0.3 ? [40, 32, 28] : [180, 140, 80] })
+			crowd.push({ pixels: capture, phase: hash(n, 3) * 6 })
+			capture = null
 			n++
 		}
 	}
 }
 
-function drawProps() {
-	if (stadium.floodlights) {
-		for (const y of [-8.5, 8.5]) {
-			bar(E(-1.5, y, 0), E(-1.5, y, 4.4), 0.16, [92, 96, 110])
-			box(...E(-1.8, y - 0.7, 4.4), ...E(-1.3, y + 0.7, 4.9), [255, 244, 200], 1)
+function drawCrowd() {
+	const age = game.time - game.cheerAt
+	const cheering = !STILL && age < 2.2
+	for (const person of crowd) {
+		const dy = cheering ? -Math.round(Math.abs(Math.sin(age * 9 + person.phase)) * 2.4 * (1 - age / 2.2)) : 0
+		const px = person.pixels
+		for (let n = 0; n < px.length; n += 4) {
+			const iy = px[n + 1] + dy
+			if (iy < 0) continue
+			const i = iy * W + px[n]
+			if (px[n + 2] <= zb[i]) continue
+			zb[i] = px[n + 2]
+			pix[i] = px[n + 3]
 		}
 	}
-	if (stadium.palms) for (const [x, y, s] of [[-3.5, 9.6, 0.8], [-4.5, -9.4, 0.7], [7.5, 9.6, 0.65]]) growTree(...E(x, y).slice(0, 2), s, 260, x * 10)
+}
+
+function prop(x, y, z, r, color) {
+	const [ex, ey, ez] = E(x, y, z)
+	sphere(ex, ey, ez, r, color, 'solid')
+	castShadow(ex, ey, ez, r)
+}
+
+function drawProps() {
+	if (stadium.floodlights) {
+		for (const y of [-9.2, 9.2]) {
+			bar(E(-1.6, y, 0), E(-1.6, y, 4.6), 0.16, [92, 96, 110])
+			box(...E(-1.9, y - 0.7, 4.6), ...E(-1.4, y + 0.7, 5.1), [255, 244, 200], 1)
+			for (let z = 0.3; z < 4.6; z += 0.3) castShadow(...E(-1.6, y, z), 0.16)
+		}
+	}
+	// spare balls by the post and training cones along the apron
+	for (const [x, y] of [[-0.55, 4.5], [-0.85, 4.85], [-0.45, 5.15]]) prop(x, y, BALL_SIZE / K, BALL_SIZE, BALL)
+	for (const x of [2, 5, 8, 11]) {
+		const [ex, ey] = E(x, PITCH.half + 0.42)
+		capsule([ex, ey, 0.02], [ex, ey, 0.42], 0.17, 0.04, () => stadium.cone, 'solid')
+		castShadow(ex, ey, 0.2, 0.12)
+	}
+	if (stadium.palms) for (const [x, y, s] of [[-3.5, 9.9, 0.8], [-4.6, -9.7, 0.7], [8, 10.4, 0.62]]) growTree(...E(x, y).slice(0, 2), s, 260, x * 10)
 	if (stadium.trees) {
-		for (const [x, y, s] of [[-4, 9.4, 0.75], [-4.4, -9.4, 0.7], [6.5, 9.8, 0.6]]) growTree(...E(x, y).slice(0, 2), s, 300, y * 10)
-		for (const [x, y] of [[1.5, -9], [9, 9], [-1.6, 6]]) sphere(...E(x, y, 0), 0.6, [244, 248, 252], 'rough')
+		for (const [x, y, s] of [[-4, 9.9, 0.75], [-4.6, -9.8, 0.7], [7, 10.5, 0.6]]) growTree(...E(x, y).slice(0, 2), s, 300, y * 10)
+		for (const [x, y, r] of [[1.5, -9.6, 0.6], [10, 9.7, 0.7], [-1.9, 7.6, 0.5]]) prop(x, y, 0, r, [244, 248, 252])
 	}
 }
 
@@ -147,6 +207,7 @@ function bakeScene() {
 	}
 	groundZ.set(zb)
 	pendingShadows.length = 0
+	crowd.length = 0
 	drawStand()
 	drawFrame()
 	drawProps()
@@ -160,37 +221,92 @@ function bakeScene() {
 
 // ── drawing per frame ────────────────────────────────────────────────────
 
+const lerp3 = (a, b, t) => a.map((v, i) => lerp(v, b[i], t))
+const DIGITS = { 7: ['###', '..#', '.#.', '.#.', '.#.'], 9: ['###', '#.#', '###', '..#', '###'] }
+
+// A footballer on the engine's figure skeleton, dressed in a kit: jersey with trim, shorts, socks and boots.
+// pose.kick (0–1) lifts the striking foot through the ball.
+function footballer(px, py, yaw, pose, kit) {
+	const fx = Math.cos(yaw), fy = Math.sin(yaw), sx = -fy, sy = fx, base = pose.z || 0, k = pose.scale || 1
+	const P = (a, b, c) => [px + (fx * a + sx * b) * k, py + (fy * a + sy * b) * k, c * k + base]
+	const bone = (a, b, r0, r1, color) => dynamicAdd(a, b, r0 * k, r1 * k, typeof color === 'function' ? color : () => color)
+	const crouch = pose.crouch || 0, lean = pose.lean || 0, kick = pose.kick || 0
+	const hipZ = 1.28 - crouch * 0.4, hipA = -crouch * 0.15
+	const shA = hipA + Math.sin(lean) * 0.95, shZ = hipZ + Math.cos(lean) * 0.95
+	const neck = P(shA, 0, shZ + 0.08), head = P(shA + Math.sin(lean) * 0.32, 0, shZ + 0.36)
+	const stance = pose.stance == null ? 0.2 : pose.stance
+	const legs = [
+		[P(hipA, 0.15, hipZ), P(-stance * 0.4 + crouch * 0.12, 0.22, 0.68 - crouch * 0.1), P(-stance * 1.2, 0.2, 0.12)],
+		[P(hipA, -0.15, hipZ), P(stance * 1.2 + crouch * 0.34 + kick * 0.45, -0.22, 0.72 - crouch * 0.08 + kick * 0.3), P(stance * 2 + kick * 0.9, -0.2, 0.12 + kick * 0.75)],
+	]
+	for (const [hip, knee, foot] of legs) {
+		const hem = lerp3(hip, knee, 0.6)
+		bone(hip, hem, 0.19, 0.17, kit.shorts)
+		bone(hem, knee, 0.13, 0.12, kit.skin)
+		bone(knee, foot, 0.12, 0.1, kit.socks)
+		bone(foot, [foot[0] + fx * 0.17 * k, foot[1] + fy * 0.17 * k, foot[2] - 0.03 * k], 0.1, 0.09, kit.boots)
+	}
+	const collar = neck[2] - 0.12 * k
+	bone(P(hipA, 0, hipZ), neck, 0.3, 0.32, z => (z > collar ? kit.trim : kit.shirt))
+	bone(neck, head, 0.11, 0.12, kit.skin)
+	bone(head, head, 0.24, 0.24, kit.skin)
+	bone([head[0] - fx * 0.06 * k, head[1] - fy * 0.06 * k, head[2] + 0.08 * k], [head[0] - fx * 0.06 * k, head[1] - fy * 0.06 * k, head[2] + 0.08 * k], 0.205, 0.205, kit.hair)
+	for (const [side, angle] of [[1, pose.armR ?? 0], [-1, pose.armL ?? 0.08]]) {
+		const sh = P(shA, side * 0.37, shZ - 0.03)
+		const elbow = P(shA + Math.sin(angle) * 0.46, side * 0.41, shZ - 0.03 - Math.cos(angle) * 0.46)
+		const hand = P(shA + Math.sin(angle + 0.18) * 0.93, side * 0.42, shZ - 0.03 - Math.cos(angle + 0.18) * 0.93)
+		const cuff = lerp3(sh, elbow, 0.7)
+		bone(sh, cuff, 0.13, 0.12, kit.shirt)
+		bone(cuff, lerp3(sh, elbow, 0.85), 0.12, 0.11, kit.trim)
+		bone(lerp3(sh, elbow, 0.85), hand, 0.09, 0.08, kit.skin)
+	}
+	// shirt number, when we see the player's back
+	if (kit.number && fx + fy < -0.3) {
+		const back = project(...P(lerp(hipA, shA, 0.55) - 0.3, 0, hipZ + 0.52))
+		const rows = DIGITS[kit.number], color = rgb(...kit.trim)
+		rows.forEach((row, r) => [...row].forEach((cell, c) => {
+			if (cell !== '#') return
+			const ix = Math.round(back.sx) - 1 + c, iy = Math.round(back.sy) - 2 + r
+			const i = iy * W + ix
+			if (ix >= 0 && iy >= 0 && ix < W && iy < H && Math.abs(zb[i] - back.d) < 3) pix[i] = color
+		}))
+	}
+}
+
 function drawKeeper(keeper, t, kit) {
 	const { spheres, axis } = keeperHitArea(keeper, t)
 	const [legs, body, head, handA, handB] = spheres
 	const at = (s, along, side = 0) => E(KEEPER_X, s.y + axis.y * along + axis.z * side, Math.max(0.06, s.z + axis.z * along - axis.y * side))
 	const hips = at(body, -0.28), shoulders = at(body, 0.26)
 	for (const side of [-1, 1]) {
-		const knee = at(legs, 0.05, side * 0.14), foot = at(legs, -0.4, side * 0.2)
-		dynamicAdd(at(body, -0.3, side * 0.1), knee, 0.12 * K, 0.1 * K, () => kit.shorts)
-		dynamicAdd(knee, foot, 0.09 * K, 0.07 * K, () => kit.shirt)
+		const hip = at(body, -0.3, side * 0.1), knee = at(legs, 0.05, side * 0.14), foot = at(legs, -0.4, side * 0.2)
+		const hem = lerp3(hip, knee, 0.6)
+		dynamicAdd(hip, hem, 0.13 * K, 0.12 * K, () => kit.shorts)
+		dynamicAdd(hem, knee, 0.09 * K, 0.085 * K, () => kit.skin)
+		dynamicAdd(knee, foot, 0.085 * K, 0.07 * K, () => kit.socks)
+		sphere(...foot, 0.075 * K, kit.boots, 'solid')
 	}
 	dynamicAdd(hips, shoulders, 0.2 * K, 0.22 * K, () => kit.shirt)
+	sphere(...at(body, 0.36), 0.12 * K, kit.trim, 'solid') // collar
 	for (const [side, hand] of [[1, handA], [-1, handB]]) {
 		const glove = E(KEEPER_X, hand.y, hand.z)
-		dynamicAdd(at(body, 0.24, side * 0.22), glove, 0.075 * K, 0.065 * K, () => kit.shirt)
+		dynamicAdd(at(body, 0.24, side * 0.22), lerp3(at(body, 0.24, side * 0.22), glove, 0.85), 0.075 * K, 0.065 * K, () => kit.shirt)
 		sphere(...glove, 0.1 * K, kit.gloves, 'solid')
 	}
 	sphere(...E(KEEPER_X, head.y, head.z), 0.15 * K, kit.skin, 'solid')
 	sphere(...at(head, 0.05, 0), 0.13 * K, kit.hair, 'solid')
 }
 
-const lerp3 = (a, b, t) => a.map((v, i) => lerp(v, b[i], t))
-
 // The kicker for this turn: where it stands, which way it faces and how it moves.
 function drawKicker() {
-	const kit = game.shooter === 'player' ? PLAYER_KIT : CPU_KIT
+	const kit = game.shooter === 'player' ? HOME : AWAY
 	const behind = [SPOT.x + 0.55, -0.45]
 	let pos = behind, yaw = Math.PI - 0.25, pose = { scale: 0.95, stance: 0.18, armL: 0.25, armR: 0.25 }
 	const t = game.phaseTime
 	if (game.phase === 'aim' || game.phase === 'charge') {
 		pos = [SPOT.x + 1.9, -1.3]
 		pose.crouch = game.phase === 'charge' ? game.power * 0.3 : 0
+		pose.z = STILL ? 0 : Math.max(0, Math.sin(game.time * 2.2)) * 0.03 // a little bounce on the toes
 	} else if (game.phase === 'approach' || game.phase === 'runup') {
 		const run = game.phase === 'approach' ? APPROACH : RUNUP
 		const k = clamp(t / run, 0, 1), tell = game.phase === 'runup' ? game.kick.tell : 0
@@ -203,11 +319,11 @@ function drawKicker() {
 	} else {
 		// strike and follow-through
 		const follow = clamp(game.simT / 0.3, 0, 1)
-		pose = { scale: 0.95, stance: lerp(0.5, 0.3, follow), lean: 0.25, armL: 1.2, armR: 0.8 }
+		pose = { scale: 0.95, stance: lerp(0.45, 0.3, follow), lean: 0.2, armL: 1.3, armR: 0.7, kick: Math.sin(Math.min(1, game.simT / 0.35) * Math.PI) }
 		pos = [behind[0] - follow * 0.5, behind[1] + follow * 0.2]
 	}
 	const [ex, ey] = E(pos[0], pos[1])
-	figure(ex, ey, yaw, pose, kit, dynamicAdd)
+	footballer(ex, ey, yaw, pose, kit)
 }
 
 function ballPosition() {
@@ -222,7 +338,7 @@ function ballPosition() {
 function drawBall() {
 	const b = ballPosition()
 	const [x, y, z] = E(b.x, b.y, b.z)
-	const r = BALL_R * K * 1.7 // drawn larger than life so it reads at this resolution
+	const r = BALL_SIZE
 	sphere(x, y, Math.max(r, z), r, BALL, 'solid')
 	castShadow(x, y, z, r, 1, 0)
 }
@@ -292,8 +408,9 @@ function draw() {
 	zb.set(bakedZ)
 	pendingShadows.length = 0
 	const windTime = STILL ? 0 : Math.floor(game.time * WIND_FPS) / WIND_FPS
+	drawCrowd()
 	drawKicker()
-	drawKeeper(game.keeper, keeperClock(), isDefending() ? PLAYER_KEEPER : CPU_KEEPER)
+	drawKeeper(game.keeper, keeperClock(), isDefending() ? HOME_KEEPER : AWAY_KEEPER)
 	drawBall()
 	drawLeaves(windTime)
 	drawTufts(windTime)
@@ -399,7 +516,9 @@ function finishKick() {
 	if (outcome === 'goal' && framed) sub = 'In off the frame'
 	if (outcome === 'saved' && shot.fingertip) { text = 'FINGERTIP SAVE!'; sub = mine ? 'Just turned away' : 'What a reach' }
 	showCallout(text, sub, mine === (outcome === 'goal'))
-	sound.play(mine === (outcome === 'goal') ? 'cheer' : 'groan')
+	const homeHappy = mine === (outcome === 'goal')
+	sound.play(homeHappy ? 'cheer' : 'groan')
+	if (homeHappy) game.cheerAt = game.time
 	game.match = recordKick(game.match, outcome)
 	setFeedback(game.match.over ? 'That settles it.' : isSuddenDeath(game.match) && game.match.turn === 'player' ? 'Sudden death. Next round.' : '')
 	updateScoreboard(true)

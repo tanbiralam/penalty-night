@@ -7,7 +7,7 @@
 		<meta name="description" content="A relaxed isometric pixel-art penalty shootout. Pick your corner, find the sweet spot, then dive to stop the reply." />
 		<title>Penalty Night</title>
 		<link rel="icon" href="favicon.svg" type="image/svg+xml" />
-		<link rel="stylesheet" href="style.css?v=1" />
+		<link rel="stylesheet" href="style.css?v=2" />
 	</head>
 	<body>
 		<header class="header">
@@ -52,8 +52,8 @@
 				<div class="footer-menu">
 					<fieldset id="sound-options" class="menu-options" hidden>
 						<legend>SOUND</legend>
-						<label><input type="radio" name="sound-mode" value="all" /> Crowd and effects</label>
-						<label><input type="radio" name="sound-mode" value="effects" /> Effects only</label>
+						<label><input type="radio" name="sound-mode" value="all" /> Music, crowd and effects</label>
+						<label><input type="radio" name="sound-mode" value="effects" /> Crowd and effects</label>
 						<label><input type="radio" name="sound-mode" value="off" /> Off</label>
 					</fieldset>
 					<button id="sound" class="text-button menu-button" type="button" aria-expanded="false" aria-controls="sound-options"><span id="sound-label">Sound on</span> <span aria-hidden="true">▾</span></button>
@@ -67,8 +67,10 @@
 					</fieldset>
 					<button id="difficulty" class="text-button menu-button" type="button" aria-expanded="false" aria-controls="difficulty-options"><span class="visually-hidden">Difficulty: </span><span id="difficulty-label">Medium</span> <span aria-hidden="true">▾</span></button>
 				</div>
+				<a href="https://github.com/tanbiralam/penalty-night" target="_blank" rel="noreferrer">GitHub ↗</a>
 				<a href="https://github.com/amirmushichge/pixel-plays" target="_blank" rel="noreferrer">Built on Pixel Plays ↗</a>
 			</div>
+			<a class="author-credit" href="https://x.com/iamtanbirr" target="_blank" rel="noreferrer">Built by @iamtanbirr ↗</a>
 		</footer>
 		<dialog id="help">
 			<div class="dialog-top"><span>FIVE KICKS EACH</span><button id="help-close" class="text-button" type="button" aria-label="Close instructions">Close ×</button></div>
@@ -93,7 +95,7 @@
 			<button id="play-again" class="play-button" type="button">Play again <span>↗</span></button>
 		</dialog>
 		<script>window.PP_SCENE = { originY: 6, shadowX: 1.05, shadowY: -0.22 }</script>
-		<script src="engine.js?v=1"></script>
-		<script type="module" src="game.js?v=1"></script>
+		<script src="engine.js?v=2"></script>
+		<script type="module" src="game.js?v=2"></script>
 	</body>
 </html>
