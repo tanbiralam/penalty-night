@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<meta name="theme-color" content="#ffffff" />
+		<meta name="description" content="A relaxed isometric pixel-art penalty shootout. Pick your corner, find the sweet spot, then dive to stop the reply." />
+		<title>Penalty Night</title>
+		<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+		<link rel="stylesheet" href="style.css?v=1" />
+	</head>
+	<body>
+		<header class="header">
+			<a class="wordmark" href="./" aria-label="Penalty Night home"><span class="ball-icon" aria-hidden="true">◍</span><span>PENALTY<br /><b>NIGHT</b></span></a>
+			<div class="scoreboard" aria-label="Scoreboard">
+				<div class="side">
+					<span class="side-name">YOU</span>
+					<span class="tracker" id="tracker-player" aria-hidden="true"></span>
+				</div>
+				<div class="score"><strong id="score-player">0</strong><span>–</span><strong id="score-cpu">0</strong></div>
+				<div class="side">
+					<span class="side-name">CPU</span>
+					<span class="tracker" id="tracker-cpu" aria-hidden="true"></span>
+				</div>
+				<p id="kick-info" class="kick-info" role="status" aria-live="polite">Kick 1 · You shoot</p>
+			</div>
+			<button id="help-open" class="text-button" type="button">How to play <span aria-hidden="true">↗</span></button>
+		</header>
+		<main>
+			<div id="stage"><canvas id="c" tabindex="0" aria-label="Penalty shootout. When shooting, aim with the mouse or arrow keys and hold Space to charge. When defending, pick a dive direction with the arrow keys and press Space." aria-describedby="controls"></canvas></div>
+			<div id="callout" hidden aria-hidden="true"><strong id="callout-text">GOAL!</strong><span id="callout-sub"></span></div>
+			<div id="paused" hidden><strong>PAUSED</strong><span>Press Esc or tap here to play on</span></div>
+			<div class="shoot-panel">
+				<p id="feedback" role="status" aria-live="polite">Pick a spot in the goal.</p>
+				<div class="power-label"><span id="power-title">SHOT POWER</span><output id="power-value">0%</output></div>
+				<div id="power-meter" role="meter" aria-label="Shot power" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="sweet-spot"></div><div id="power-fill"></div></div>
+				<button id="shoot" type="button"><kbd>SPACE</kbd><span id="shoot-label">Hold to charge · release to shoot</span></button>
+			</div>
+		</main>
+		<footer class="footer">
+			<div id="controls"><span><span class="mouse-icon" aria-hidden="true"></span> / <kbd>↑ ← ↓ →</kbd> <kbd>W A S D</kbd> aim or dive</span><span><kbd>SPACE</kbd> shoot or dive</span><span><kbd>ESC</kbd> pause</span></div>
+			<div class="footer-right">
+				<div class="footer-menu">
+					<fieldset id="stadium-options" class="menu-options" hidden>
+						<legend>STADIUM</legend>
+						<label><input type="radio" name="stadium" value="street" /> Street pitch at night</label>
+						<label><input type="radio" name="stadium" value="beach" /> Beach at sunset</label>
+						<label><input type="radio" name="stadium" value="snow" /> Snowy park</label>
+					</fieldset>
+					<button id="stadium" class="text-button menu-button" type="button" aria-expanded="false" aria-controls="stadium-options"><span class="visually-hidden">Stadium: </span><span id="stadium-label">Street pitch at night</span> <span aria-hidden="true">▾</span></button>
+				</div>
+				<div class="footer-menu">
+					<fieldset id="sound-options" class="menu-options" hidden>
+						<legend>SOUND</legend>
+						<label><input type="radio" name="sound-mode" value="all" /> Crowd and effects</label>
+						<label><input type="radio" name="sound-mode" value="effects" /> Effects only</label>
+						<label><input type="radio" name="sound-mode" value="off" /> Off</label>
+					</fieldset>
+					<button id="sound" class="text-button menu-button" type="button" aria-expanded="false" aria-controls="sound-options"><span id="sound-label">Sound on</span> <span aria-hidden="true">▾</span></button>
+				</div>
+				<div class="footer-menu">
+					<fieldset id="difficulty-options" class="menu-options" hidden>
+						<legend>DIFFICULTY</legend>
+						<label><input type="radio" name="difficulty" value="easy" /> Easy</label>
+						<label><input type="radio" name="difficulty" value="medium" /> Medium</label>
+						<label><input type="radio" name="difficulty" value="hard" /> Hard</label>
+					</fieldset>
+					<button id="difficulty" class="text-button menu-button" type="button" aria-expanded="false" aria-controls="difficulty-options"><span class="visually-hidden">Difficulty: </span><span id="difficulty-label">Medium</span> <span aria-hidden="true">▾</span></button>
+				</div>
+				<a href="https://github.com/amirmushichge/pixel-plays" target="_blank" rel="noreferrer">Built on Pixel Plays ↗</a>
+			</div>
+		</footer>
+		<dialog id="help">
+			<div class="dialog-top"><span>FIVE KICKS EACH</span><button id="help-close" class="text-button" type="button" aria-label="Close instructions">Close ×</button></div>
+			<h1>Under the<br />floodlights.</h1>
+			<p>You and the CPU take turns: you shoot, then you go in goal. Best of five, then sudden death.</p>
+			<dl>
+				<div><dt>01 / AIM</dt><dd>Move the mouse, drag on touch screens, or use the arrow keys or WASD to place the marker in the goal. Aim a little outside the frame and you will miss on purpose.</dd></div>
+				<div><dt>02 / SHOOT</dt><dd>Hold Space or the shoot button to charge, then release. Land in the bright sweet spot and the ball goes where you aimed. Too soft and the keeper gets there; too hard and it flies.</dd></div>
+				<div><dt>03 / SAVE</dt><dd>Watch the run-up: the kicker leans toward a side, mostly honestly. Pick a dive with the arrow keys or WASD and press Space, or tap where you want to dive. A late dive covers less ground.</dd></div>
+			</dl>
+			<p class="dialog-note">Esc pauses. Stadium, sound and difficulty are remembered; the match is not.</p>
+			<button id="help-play" class="play-button" type="button">To the spot <span>↗</span></button>
+		</dialog>
+		<dialog id="result">
+			<div class="dialog-top"><span id="result-kicker">FULL TIME</span></div>
+			<h1 id="result-title">You win!</h1>
+			<p class="result-score"><span>YOU</span><strong id="result-player">0</strong><span>–</span><strong id="result-cpu">0</strong><span>CPU</span></p>
+			<table class="history">
+				<thead><tr id="history-head"></tr></thead>
+				<tbody><tr id="history-player"></tr><tr id="history-cpu"></tr></tbody>
+			</table>
+			<button id="play-again" class="play-button" type="button">Play again <span>↗</span></button>
+		</dialog>
+		<script>window.PP_SCENE = { originY: 6, shadowX: 1.05, shadowY: -0.22 }</script>
+		<script src="engine.js?v=1"></script>
+		<script type="module" src="game.js?v=1"></script>
+	</body>
+</html>
