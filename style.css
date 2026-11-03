@@ -45,7 +45,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outlin
 .kick-info { grid-column: 1 / -1; margin: 2px 0 0; text-align: center; font-size: 9px; letter-spacing: 1.2px; color: var(--muted); }
 
 #stage { position: absolute; inset: 0 0 70px; display: grid; place-items: center; overflow: hidden; }
-canvas { display: block; image-rendering: pixelated; cursor: crosshair; touch-action: none; transition: transform 0.7s cubic-bezier(.2, .7, .2, 1); }
+canvas { display: block; image-rendering: pixelated; cursor: crosshair; touch-action: none; outline: none; transition: transform 0.7s cubic-bezier(.2, .7, .2, 1); }
 canvas.zoomed { transform: scale(1.14); }
 
 #callout, #paused { position: absolute; z-index: 3; transform: translate(-50%, -100%); padding: 10px 16px; border: 1px solid var(--accent); background: var(--paper); color: var(--accent); text-align: center; pointer-events: none; box-shadow: 3px 3px 0 #00000018; }
